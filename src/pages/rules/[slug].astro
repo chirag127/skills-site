@@ -1,0 +1,50 @@
+---
+import { getCollection, render } from 'astro:content'
+import BaseLayout from '../../layouts/BaseLayout.astro'
+
+export async function getStaticPaths() {
+  const ruleSkills = await getCollection('ruleSkills')
+  return ruleSkills.map(s => ({ params: { slug: s.id }, props: { skill: s } }))
+}
+
+const { skill } = Astro.props
+const { Content } = await render(skill)
+const data = skill.data as any
+const rawName = data.name || skill.id
+const shortName = rawName.replace(/^rule-/, '')
+// Rule slug maps back to knowledge/rules/<area>/<slug>.md — best-effort link
+const knowledgeUrl = `https://knowledge.oriz.in/rules/${shortName}/`
+---
+
+<BaseLayout title={`${shortName} — skills.oriz.in`} description={data.description}>
+  <main class="skill-body">
+    <p style="color: var(--muted); font-family: var(--font-mono); font-size: 0.8125rem; margin: 0 0 0.5rem;">
+      <a href="/" style="color: var(--muted); text-decoration: none;">← skills.oriz.in</a>
+      &nbsp;/&nbsp;
+      <span>rules</span>
+    </p>
+
+    <div class="hero-prompt"><span class="sigil">$</span>rule invoke {shortName}</div>
+
+    <h1>{shortName}<span class="cursor" aria-hidden="true"></span></h1>
+    <p style="color: var(--muted); font-size: 1.0625rem; line-height: 1.55; border-left: 3px solid var(--accent2); padding-left: 1rem; margin: 0 0 2rem;">
+      {data.description}
+    </p>
+
+    <div style="padding: 0.85rem 1rem; background: var(--code-bg); border: 1px solid var(--rule); border-radius: 4px; margin-bottom: 2rem; font-family: var(--font-mono); font-size: 0.8125rem;">
+      <span style="color: var(--muted);">auto-generated wrapper. full rule:</span>
+      <a href={knowledgeUrl} style="color: var(--accent);">{knowledgeUrl}</a>
+    </div>
+
+    <Content />
+
+    <hr />
+    <p style="color: var(--muted); font-size: 0.8125rem; font-family: var(--font-mono);">
+      <a href={`https://github.com/chirag127/agent-skills/blob/main/rules-gen/${skill.id}/SKILL.md`} style="color: var(--accent);">edit on github</a>
+      &nbsp;·&nbsp;
+      <a href={knowledgeUrl} style="color: var(--accent);">full rule</a>
+      &nbsp;·&nbsp;
+      <a href="/" style="color: var(--accent);">back to toolbox</a>
+    </p>
+  </main>
+</BaseLayout>

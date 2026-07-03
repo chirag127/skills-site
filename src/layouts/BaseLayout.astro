@@ -1,0 +1,100 @@
+---
+import Wordmark from '@chirag127/site-shell/components/Wordmark.astro'
+import Footer from '@chirag127/site-shell/components/Footer.astro'
+import { bunnyFontsCss } from '@chirag127/site-shell/bunny-fonts'
+import '../styles/global.css'
+
+interface Props {
+  title: string
+  description?: string
+}
+
+const { title, description = "The toolbox — 64 agent skills, Anthropic-format SKILL.md" } = Astro.props
+const fontsUrl = bunnyFontsCss({
+  inter: [400, 500, 600],
+  'jetbrains-mono': [400, 500, 700],
+})
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <meta name="color-scheme" content="dark" />
+    <title>{title}</title>
+    <link rel="alternate" type="application/rss+xml" href="/feed.xml" />
+    <link rel="preconnect" href="https://fonts.bunny.net" />
+    <link rel="stylesheet" href={fontsUrl} />
+  </head>
+  <body>
+    <header class="site-header">
+      <Wordmark />
+      <div style="display:flex; gap: 0.75rem; align-items: center;">
+        <button id="search-btn" class="search-btn" onclick="document.getElementById('search-dialog')?.showModal()">
+          Search <kbd>⌘K</kbd>
+        </button>
+      </div>
+    </header>
+
+    <slot />
+
+    <Footer />
+
+    <dialog id="search-dialog" style="border:1px solid var(--rule); border-radius:4px; padding:0; width: 90%; max-width: 600px; background: var(--surface); color: var(--fg);">
+      <form method="dialog" style="padding: 1.25rem;">
+        <input id="search-input" type="search" placeholder="$ search skills…" autofocus style="width:100%; padding: 0.75rem 1rem; font-size:0.9375rem; background:var(--code-bg); border: 1px solid var(--rule); border-radius: 4px; color: var(--fg); font-family: var(--font-mono);" />
+        <div id="search-results" style="margin-top: 1rem; max-height: 400px; overflow-y: auto;"></div>
+      </form>
+    </dialog>
+
+    <script>
+      // ⌘K to open search
+      window.addEventListener('keydown', (e) => {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+          e.preventDefault()
+          document.getElementById('search-dialog')?.showModal()
+        }
+        if (e.key === 'Escape') document.getElementById('search-dialog')?.close()
+      })
+
+      // Lazy FlexSearch index
+      let searchIndex = null
+      let searchDocs = []
+      async function ensureIndex() {
+        if (searchIndex) return
+        const res = await fetch('/search-index.json')
+        searchDocs = await res.json()
+        const { default: FlexSearch } = await import('flexsearch')
+        searchIndex = new FlexSearch.Document({
+          document: { id: 'slug', index: ['name', 'description', 'kind'] },
+          tokenize: 'forward',
+        })
+        for (const doc of searchDocs) searchIndex.add(doc)
+      }
+      const inp = document.getElementById('search-input')
+      const out = document.getElementById('search-results')
+      inp?.addEventListener('input', async (e) => {
+        const q = e.target.value.trim()
+        if (!q) { out.innerHTML = ''; return }
+        await ensureIndex()
+        const hits = searchIndex.search(q, { limit: 10, enrich: true })
+        const seen = new Set()
+        const results = []
+        for (const field of hits) for (const r of field.result) {
+          if (seen.has(r.id)) continue
+          seen.add(r.id)
+          const doc = searchDocs.find(d => d.slug === r.id)
+          if (doc) results.push(doc)
+        }
+        out.innerHTML = results.slice(0, 10).map(r =>
+          `<a href="${r.href}" style="display:block; padding:0.6rem 0.75rem; border-bottom:1px solid var(--rule); text-decoration:none; color:inherit;">
+            <div style="font-family: var(--font-mono); color: var(--accent); font-size: 0.8125rem;">$ ${r.kind === 'rule' ? 'rule' : 'skill'} ${r.name}</div>
+            <div style="font-size:0.8125rem; color:var(--muted); margin-top:0.15em;">${(r.description || '').slice(0, 140)}</div>
+          </a>`
+        ).join('') || '<div style="padding:0.5rem; color:var(--muted); font-family: var(--font-mono); font-size: 0.8125rem;">no matches.</div>'
+      })
+    </script>
+  </body>
+</html>

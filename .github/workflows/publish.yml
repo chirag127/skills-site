@@ -1,0 +1,44 @@
+name: Publish skills.oriz.in
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+  repository_dispatch:
+    types: [skills-updated]
+
+concurrency:
+  group: publish-skills
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  deployments: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Checkout agent-skills content
+        uses: actions/checkout@v5
+        with:
+          repository: chirag127/agent-skills
+          path: agent-skills
+          submodules: false
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile=false
+      - name: Build
+        env:
+          SKILLS_SRC: ${{ github.workspace }}/agent-skills
+        run: pnpm build
+      - name: Deploy to CF Pages
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CF_API_TOKEN }}
+          accountId: ${{ secrets.CF_ACCOUNT_ID }}
+          projectName: skills-oriz-in
+          directory: dist
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}

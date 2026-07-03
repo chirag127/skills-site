@@ -1,0 +1,103 @@
+---
+import { getCollection } from 'astro:content'
+import BaseLayout from '../layouts/BaseLayout.astro'
+
+const skills = await getCollection('skills')
+const ruleSkills = await getCollection('ruleSkills')
+
+// Sort alphabetically by name
+const skillsSorted = [...skills].sort((a, b) =>
+  ((a.data as any).name || a.id).localeCompare((b.data as any).name || b.id)
+)
+const rulesSorted = [...ruleSkills].sort((a, b) =>
+  ((a.data as any).name || a.id).localeCompare((b.data as any).name || b.id)
+)
+
+const total = skillsSorted.length + rulesSorted.length
+---
+
+<BaseLayout title="skills.oriz.in — the toolbox">
+  <section class="hero">
+    <div class="meta">
+      <strong>type:</strong> agent-skills-bundle &nbsp;·&nbsp;
+      <strong>format:</strong> anthropic-skill-md &nbsp;·&nbsp;
+      <strong>count:</strong> {total} &nbsp;·&nbsp;
+      <strong>src:</strong> <a href="https://github.com/chirag127/agent-skills" style="color: var(--accent);">chirag127/agent-skills</a>
+    </div>
+
+    <h1>the toolbox<span class="cursor" aria-hidden="true"></span></h1>
+    <p class="tag">
+      {total} agent skills wired to Claude Code. Anthropic-format <code>SKILL.md</code> with a
+      one-line trigger. Type <kbd style="font-family: var(--font-mono); font-size:0.75em; padding:0.05em 0.3em; border:1px solid var(--rule); border-radius:3px; background: var(--code-bg); color: var(--muted);">⌘K</kbd> to grep.
+    </p>
+  </section>
+
+  <main style="max-width: var(--max-w); margin: 0 auto; padding: 0 1.5rem 4rem;">
+    <div class="filter-bar" role="tablist" aria-label="Filter by kind">
+      <button class="filter-chip" aria-pressed="true" data-filter="all">$ all ({total})</button>
+      <button class="filter-chip" aria-pressed="false" data-filter="skill">$ skills ({skillsSorted.length})</button>
+      <button class="filter-chip" aria-pressed="false" data-filter="rule">$ rules ({rulesSorted.length})</button>
+    </div>
+
+    <section style="margin-top: 1rem;">
+      <h2 style="font-family: var(--font-head); font-size: 1.125rem; color: var(--muted); text-transform: lowercase; letter-spacing: 0.05em; margin: 1.5rem 0 0.5rem;"># curated ({skillsSorted.length})</h2>
+      <div class="skill-grid" data-group="skill">
+        {skillsSorted.map(s => {
+          const d = s.data as any
+          const name = d.name || s.id
+          return (
+            <a href={`/${s.id}/`} class="skill-card" data-kind="skill">
+              <div class="prompt"><span class="sigil">$</span>skill invoke {name}</div>
+              <div class="body">
+                <p class="desc">{d.description}</p>
+                <div class="tags">
+                  <span class="chip">skill</span>
+                  {d.hidden && <span class="chip">hidden</span>}
+                </div>
+              </div>
+            </a>
+          )
+        })}
+      </div>
+    </section>
+
+    <section style="margin-top: 2rem;">
+      <h2 style="font-family: var(--font-head); font-size: 1.125rem; color: var(--muted); text-transform: lowercase; letter-spacing: 0.05em; margin: 1.5rem 0 0.5rem;"># auto-generated from rules ({rulesSorted.length})</h2>
+      <div class="skill-grid" data-group="rule">
+        {rulesSorted.map(s => {
+          const d = s.data as any
+          const name = d.name || s.id
+          return (
+            <a href={`/rules/${s.id}/`} class="skill-card" data-kind="rule">
+              <div class="prompt"><span class="sigil">$</span>rule invoke {name.replace(/^rule-/, '')}</div>
+              <div class="body">
+                <p class="desc">{d.description}</p>
+                <div class="tags">
+                  <span class="chip rule">rule</span>
+                </div>
+              </div>
+            </a>
+          )
+        })}
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // Filter chips
+    const chips = document.querySelectorAll('.filter-chip')
+    chips.forEach(c => c.addEventListener('click', () => {
+      const filter = c.getAttribute('data-filter')
+      chips.forEach(x => x.setAttribute('aria-pressed', x === c ? 'true' : 'false'))
+      document.querySelectorAll('.skill-card').forEach(card => {
+        const kind = card.getAttribute('data-kind')
+        card.style.display = (filter === 'all' || filter === kind) ? '' : 'none'
+      })
+      document.querySelectorAll('[data-group]').forEach(g => {
+        const kind = g.getAttribute('data-group')
+        const parent = g.parentElement
+        if (parent) parent.style.display = (filter === 'all' || filter === kind) ? '' : 'none'
+      })
+    }))
+  </script>
+</BaseLayout>
